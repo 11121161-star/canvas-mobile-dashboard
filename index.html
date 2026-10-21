@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Hybrid-LLM 電郵情報視覺化中心</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --red: #ef4444;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang HK", "Noto Sans TC", sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+    .container { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+    
+    /* Header Card */
+    .header-card {
+      background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+      border: 1px solid #3b82f6;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .header-card h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: 8px; color: #60a5fa; }
+    .header-card p { font-size: 0.9rem; color: #cbd5e1; }
+    
+    /* Quick Action WhatsApp Button */
+    .whatsapp-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: #25d366;
+      color: #000;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 14px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+      transition: transform 0.1s;
+    }
+    .whatsapp-btn:active { transform: scale(0.98); }
+
+    /* Node Card */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+    .card-title { font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+    .badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+    .badge-green { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid #22c55e; }
+    .badge-yellow { background: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid #eab308; }
+    .badge-blue { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid #38bdf8; }
+
+    /* Content Lists */
+    ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    li { font-size: 0.9rem; color: #e2e8f0; }
+    .node-item { background: rgba(255,255,255,0.03); padding: 10px 12px; border-radius: 8px; border-left: 3px solid var(--accent); }
+    .node-item.warning { border-left-color: var(--yellow); }
+    .node-item.danger { border-left-color: var(--red); }
+
+    /* Priority Matrix Table */
+    .table-container { overflow-x: auto; margin-top: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--text-muted); font-weight: 600; }
+    .p0 { color: #f87171; font-weight: bold; }
+    .p1 { color: #facc15; font-weight: bold; }
+    .p2 { color: #4ade80; font-weight: bold; }
+
+    /* Stats bar */
+    .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
+    .stat-box { background: rgba(255,255,255,0.04); padding: 12px; border-radius: 10px; text-align: center; }
+    .stat-num { font-size: 1.5rem; font-weight: 700; color: #38bdf8; }
+    .stat-desc { font-size: 0.75rem; color: var(--text-muted); }
+
+    .footer { text-align: center; font-size: 0.8rem; color: var(--text-muted); padding: 20px 0; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- WhatsApp Quick Send -->
+  <a class="whatsapp-btn" id="waLink" href="#">
+    <span>📲 分享呢份情報畀屋企人 (WhatsApp)</span>
+  </a>
+
+  <!-- Header Banner -->
+  <div class="header-card">
+    <h1>🚀 Hybrid-LLM 電郵情報看板</h1>
+    <p>多帳號 × M5 本地模型 × BytePlus DeepSeek-V4-Pro-GA (2026-10-16)</p>
+    <div style="margin-top: 8px; font-size: 0.82rem; color: #93c5fd;">
+      ✅ 已讀取 3 個帳戶共 18 封最新郵件 ｜ 自動識別轉寄信件
+    </div>
+  </div>
+
+  <!-- Key Statistics -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📊 快速數據總覽</div>
+      <span class="badge badge-blue">即時同步</span>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-num">18</div>
+        <div class="stat-desc">已掃描最新信件</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" style="color: #ef4444;">6</div>
+        <div class="stat-desc">需優先處理行動 (P0/P1)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Node 1: IMAP Sources -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📥 1. 已連通數據源 (Live IMAP)</div>
+      <span class="badge badge-green">3/3 連線正常</span>
+    </div>
+    <ul>
+      <li class="node-item">✅ <strong>Gmail #1</strong>: <code>likingtong2013@gmail.com</code></li>
+      <li class="node-item">✅ <strong>Gmail #2</strong>: <code>likingtong2013abc@gmail.com</code></li>
+      <li class="node-item">✅ <strong>Gmail #3</strong>: <code>likingtong2022@gmail.com</code></li>
+      <li class="node-item warning">
+        🔄 <strong>學校帳號 (@nttu.edu.tw)</strong><br>
+        學校停用 App Password，只需於 Webmail 開啟「自動轉寄」，系統將自動標記為 <code>School_Account</code>。
+      </li>
+    </ul>
+  </div>
+
+  <!-- Node 2: Tier 1 Local Model -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">💻 2. 本地私密解析 (M5 deepseek-r1:8b)</div>
+      <span class="badge badge-yellow">本地私密處理</span>
+    </div>
+    <ul>
+      <li class="node-item danger">
+        <strong>🔒 Google 安全性快訊 (Gmail 1 & 3)</strong><br>
+        檢測到「Obsidian-Mac」建立應用程式密碼，若非本人操作需立即檢查撤銷。
+      </li>
+      <li class="node-item">
+        <strong>⚙️ BytePlus 實例建立 (Gmail 1)</strong><br>
+        5 封「Create Instance Successfully」通知，確認為正常開發排程。
+      </li>
+    </ul>
+  </div>
+
+  <!-- Priority Action Matrix -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">🚨 需注意行動清單 (給爸爸把關)</div>
+      <span class="badge badge-green">最新摘要</span>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>等級</th>
+            <th>信箱</th>
+            <th>內容與建議行動</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="p0">🔴 P0</span></td>
+            <td>likingtong2013</td>
+            <td>Google 安全快訊：確認是否本人新增 Obsidian 密碼。</td>
+          </tr>
+          <tr>
+            <td><span class="p0">🔴 P0</span></td>
+            <td>likingtong2013abc</td>
+            <td>Parsec 登入驗證 ×2、Pixel 10a 電話驗證，確認是否本人手機。</td>
+          </tr>
+          <tr>
+            <td><span class="p1">🟡 P1</span></td>
+            <td>likingtong2022</td>
+            <td>Mox 銀行交易（1 筆取消、2 筆完成），核對扣款紀錄。</td>
+          </tr>
+          <tr>
+            <td><span class="p2">🟢 P2</span></td>
+            <td>全帳戶</td>
+            <td>日常新聞與推廣電郵（鉅亨網、FT、ShopBack），毋須理會。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">
+    💡 本頁面由 Obsidian Canvas 自動匯出 ｜ 手機最佳化排版
+  </div>
+</div>
+
+<script>
+  // Setup WhatsApp share button with current URL
+  const currentUrl = window.location.href;
+  const shareText = encodeURIComponent("爸爸，呢個係最新嘅電郵情報看板，撳入去就睇到：\n" + currentUrl);
+  document.getElementById('waLink').href = "https://api.whatsapp.com/send?text=" + shareText;
+</script>
+
+</body>
+</html>
